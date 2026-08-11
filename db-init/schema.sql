@@ -195,9 +195,11 @@ CREATE TABLE IF NOT EXISTS layer_evidences (
     layer             VARCHAR(20)  NOT NULL,   -- MARKET / CUSTOMER / COMPETITION
     factor            VARCHAR(200) NOT NULL,
     value             VARCHAR(200),
+    percentile        VARCHAR(50),              -- 예: "서울 상위 21%" (원본값과 함께 노출용)
+    sample_size       INTEGER,                  -- 비율 지표의 분모(예: 점포수). LOW_SAMPLE 판정 근거
     source            VARCHAR(200),
     reference_date    VARCHAR(50),
-    confidence_status VARCHAR(30)              -- CONFIRMED / INSUFFICIENT_DATA / APPROXIMATE
+    confidence_status VARCHAR(30)              -- CONFIRMED / INSUFFICIENT_DATA / APPROXIMATE / LOW_SAMPLE
 );
 CREATE INDEX IF NOT EXISTS idx_evidence_diagnosis ON layer_evidences (diagnosis_id);
 

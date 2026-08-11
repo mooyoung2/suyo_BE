@@ -43,6 +43,12 @@ public class LayerEvidence {
     @Column(name = "value", length = 200)
     private String value;
 
+    @Column(name = "percentile", length = 50)
+    private String percentile;
+
+    @Column(name = "sample_size")
+    private Integer sampleSize;
+
     @Column(name = "source", length = 200)
     private String source;
 
@@ -55,12 +61,14 @@ public class LayerEvidence {
 
     @Builder
     private LayerEvidence(DiagnosisResult diagnosisResult, DiagnosisLayer layer, String factor,
-                           String value, String source, String referenceDate,
-                           ConfidenceStatus confidenceStatus) {
+                           String value, String percentile, Integer sampleSize, String source,
+                           String referenceDate, ConfidenceStatus confidenceStatus) {
         this.diagnosisResult = diagnosisResult;
         this.layer = layer;
         this.factor = factor;
         this.value = value;
+        this.percentile = percentile;
+        this.sampleSize = sampleSize;
         this.source = source;
         this.referenceDate = referenceDate;
         this.confidenceStatus = confidenceStatus;
