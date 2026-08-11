@@ -29,8 +29,11 @@ TRUNCATE industry_survival_rates RESTART IDENTITY;
 \echo '4/5 industry_code_mapping (96행)'
 \copy industry_code_mapping (sales_industry_name, sales_industry_code, small_code, small_name, mid_name, national_count) FROM 'industry_code_mapping.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
-\echo '5/5 industry_survival_rates (11행)'
+\echo '5/6 industry_survival_rates (11행)'
 \copy industry_survival_rates (large_code, large_name, stat_industry, survival_1y, survival_5y, closure_rate, base_year, source) FROM 'industry_survival_rates.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
+
+\echo '6/6 population_by_sgg (525행 · 25개구 × 21분기)'
+\copy population_by_sgg (sgg_code, sgg_name, quarter, flow_total, flow_male, flow_female, flow_age10, flow_age20, flow_age30, flow_age40, flow_age50, flow_age60, resident_total, household_total, household_apt, household_nonapt, worker_total) FROM 'population_by_sgg.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8')
 
 ANALYZE;
 
@@ -43,7 +46,13 @@ SELECT 'industry_codes'          AS table_name, count(*) AS rows, 247    AS expe
 UNION ALL SELECT 'store_counts_by_sgg',      count(*), 6004  FROM store_counts_by_sgg
 UNION ALL SELECT 'seoul_sales_quarterly',    count(*), 1323  FROM seoul_sales_quarterly
 UNION ALL SELECT 'industry_code_mapping',    count(*), 96    FROM industry_code_mapping
-UNION ALL SELECT 'industry_survival_rates',  count(*), 11    FROM industry_survival_rates;
+UNION ALL SELECT 'industry_survival_rates',  count(*), 11    FROM industry_survival_rates
+UNION ALL SELECT 'population_by_sgg',        count(*), 525   FROM population_by_sgg;
+
+\echo ''
+\echo '=== 인구 검증 (2026년 1분기 상주인구 합계 9,360,421 이어야 함) ==='
+SELECT sum(resident_total) AS seoul_population, sum(worker_total) AS workers
+FROM population_by_sgg WHERE quarter = '20261';
 
 \echo ''
 \echo '=== 무결성 검증 (서울 합계 554,092 이어야 함) ==='

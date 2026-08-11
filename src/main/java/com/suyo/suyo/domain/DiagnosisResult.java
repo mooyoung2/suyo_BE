@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -35,17 +36,17 @@ public class DiagnosisResult {
     @JoinColumn(name = "analysis_id", nullable = false)
     private AnalysisRequest analysisRequest;
 
-    @Column(name = "total_score", nullable = false)
-    private Integer totalScore;
+    @Column(name = "total_score", nullable = false, precision = 4, scale = 1)
+    private BigDecimal totalScore;
 
-    @Column(name = "market_score")
-    private Integer marketScore;
+    @Column(name = "market_score", precision = 4, scale = 1)
+    private BigDecimal marketScore;
 
-    @Column(name = "customer_score")
-    private Integer customerScore;
+    @Column(name = "customer_score", precision = 4, scale = 1)
+    private BigDecimal customerScore;
 
-    @Column(name = "competition_score", nullable = false)
-    private Integer competitionScore;
+    @Column(name = "competition_score", nullable = false, precision = 4, scale = 1)
+    private BigDecimal competitionScore;
 
     @Column(name = "verdict", length = 100)
     private String verdict;
@@ -59,8 +60,8 @@ public class DiagnosisResult {
     private LocalDateTime createdAt;
 
     @Builder
-    private DiagnosisResult(AnalysisRequest analysisRequest, Integer totalScore, Integer marketScore,
-                             Integer customerScore, Integer competitionScore, String verdict,
+    private DiagnosisResult(AnalysisRequest analysisRequest, BigDecimal totalScore, BigDecimal marketScore,
+                             BigDecimal customerScore, BigDecimal competitionScore, String verdict,
                              DataCoverage dataCoverage) {
         this.analysisRequest = analysisRequest;
         this.totalScore = totalScore;
