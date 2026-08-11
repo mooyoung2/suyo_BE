@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -31,11 +32,11 @@ public class CustomerScoreHistory {
     @JoinColumn(name = "analysis_id", nullable = false)
     private AnalysisRequest analysisRequest;
 
-    @Column(name = "previous_score")
-    private Integer previousScore;
+    @Column(name = "previous_score", precision = 4, scale = 1)
+    private BigDecimal previousScore;
 
-    @Column(name = "updated_score")
-    private Integer updatedScore;
+    @Column(name = "updated_score", precision = 4, scale = 1)
+    private BigDecimal updatedScore;
 
     @Column(name = "reason", columnDefinition = "TEXT")
     private String reason;
@@ -45,8 +46,8 @@ public class CustomerScoreHistory {
     private LocalDateTime createdAt;
 
     @Builder
-    private CustomerScoreHistory(AnalysisRequest analysisRequest, Integer previousScore,
-                                  Integer updatedScore, String reason) {
+    private CustomerScoreHistory(AnalysisRequest analysisRequest, BigDecimal previousScore,
+                                  BigDecimal updatedScore, String reason) {
         this.analysisRequest = analysisRequest;
         this.previousScore = previousScore;
         this.updatedScore = updatedScore;
