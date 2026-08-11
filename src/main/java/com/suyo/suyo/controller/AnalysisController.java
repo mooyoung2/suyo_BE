@@ -13,6 +13,7 @@ import com.suyo.suyo.common.ApiResponse;
 import com.suyo.suyo.dto.request.AnalysisCreateRequest;
 import com.suyo.suyo.dto.response.AnalysisCreateResponse;
 import com.suyo.suyo.dto.response.DiagnosisResponse;
+import com.suyo.suyo.dto.response.EvidenceResponse;
 import com.suyo.suyo.service.AnalysisService;
 
 import jakarta.validation.Valid;
@@ -34,6 +35,12 @@ public class AnalysisController {
     @GetMapping("/{id}/diagnosis")
     public ResponseEntity<ApiResponse<DiagnosisResponse>> getDiagnosis(@PathVariable Long id) {
         DiagnosisResponse response = analysisService.getDiagnosis(id);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{id}/evidence")
+    public ResponseEntity<ApiResponse<EvidenceResponse>> getEvidence(@PathVariable Long id) {
+        EvidenceResponse response = analysisService.getEvidence(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
