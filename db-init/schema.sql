@@ -121,6 +121,42 @@ CREATE UNIQUE INDEX uk_survival_large_code ON industry_survival_rates (large_cod
     WHERE large_code IS NOT NULL;
 
 
+-- ---------------------------------------------------------------------
+-- A-6. 자치구별 인구 (525행) · 서울 25개구 × 21분기
+--      출처: 서울시 상권분석서비스 (길단위인구·상주인구·직장인구 행정동)
+--      → 행정동 425개를 자치구 25개로 집계함
+--      검증: 상주인구 합계 9,360,421명 (서울시 실제 인구와 일치)
+--      · 유동인구는 분기 누적치. 일평균은 90으로 나눌 것
+--      · 상주인구는 연 1회만 갱신 (4분기 값이 다음 해 1~3분기에 그대로 반복)
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS population_by_sgg CASCADE;
+CREATE TABLE population_by_sgg (
+    id              BIGSERIAL PRIMARY KEY,
+    sgg_code        VARCHAR(10)  NOT NULL,
+    sgg_name        VARCHAR(50)  NOT NULL,
+    quarter         VARCHAR(6)   NOT NULL,
+    -- 유동인구 (분기 누적)
+    flow_total      BIGINT,
+    flow_male       BIGINT,
+    flow_female     BIGINT,
+    flow_age10      BIGINT,
+    flow_age20      BIGINT,
+    flow_age30      BIGINT,
+    flow_age40      BIGINT,
+    flow_age50      BIGINT,
+    flow_age60      BIGINT,
+    -- 상주인구
+    resident_total  BIGINT,
+    household_total BIGINT,
+    household_apt   BIGINT,
+    household_nonapt BIGINT,
+    -- 직장인구
+    worker_total    BIGINT
+);
+CREATE UNIQUE INDEX uk_population_sgg_quarter ON population_by_sgg (sgg_code, quarter);
+CREATE INDEX idx_population_quarter          ON population_by_sgg (quarter);
+
+
 -- =====================================================================
 -- [B] 서비스 운영 테이블 (JPA 엔티티로 관리 · 참고용 DDL)
 -- =====================================================================
@@ -143,10 +179,10 @@ CREATE INDEX IF NOT EXISTS idx_analysis_created ON analysis_requests (created_at
 CREATE TABLE IF NOT EXISTS diagnosis_results (
     id                 BIGSERIAL PRIMARY KEY,
     analysis_id        BIGINT NOT NULL REFERENCES analysis_requests(id) ON DELETE CASCADE,
-    total_score        INTEGER NOT NULL,
-    market_score       INTEGER,                -- L1 (30점) · 업종 매핑 안 되면 NULL (96/247 소분류만 매핑, 커버리지 72%)
-    customer_score     INTEGER,                -- L2 (40점) · 위와 동일 사유로 NULL 가능
-    competition_score  INTEGER NOT NULL,       -- L3 (30점) · 상가정보 247개 소분류 전체 커버라 항상 존재
+    total_score        NUMERIC(4,1) NOT NULL,  -- 백분위 기반 산출이라 소수점 발생 (예: 56.8)
+    market_score       NUMERIC(4,1),           -- L1 (30점) · 업종 매핑 안 되면 NULL (96/247 소분류만 매핑, 커버리지 72%)
+    customer_score     NUMERIC(4,1),           -- L2 (40점) · 위와 동일 사유로 NULL 가능
+    competition_score  NUMERIC(4,1) NOT NULL,  -- L3 (30점) · 상가정보 247개 소분류 전체 커버라 항상 존재
     verdict            VARCHAR(100),
     data_coverage      VARCHAR(50),            -- FULL / COMPETITION_ONLY · 지역이 아니라 "업종 매핑 여부"에 따라 갈림 (서비스 전체가 서울 타겟이므로 지역 사유의 NULL은 없음)
     created_at         TIMESTAMP NOT NULL DEFAULT now()
@@ -203,8 +239,8 @@ CREATE TABLE IF NOT EXISTS verification_results (
 CREATE TABLE IF NOT EXISTS customer_score_history (
     id             BIGSERIAL PRIMARY KEY,
     analysis_id    BIGINT NOT NULL REFERENCES analysis_requests(id) ON DELETE CASCADE,
-    previous_score INTEGER,
-    updated_score  INTEGER,
+    previous_score NUMERIC(4,1),
+    updated_score  NUMERIC(4,1),
     reason         TEXT,
     created_at     TIMESTAMP NOT NULL DEFAULT now()
 );
