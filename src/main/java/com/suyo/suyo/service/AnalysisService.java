@@ -15,13 +15,17 @@ import com.suyo.suyo.domain.DiagnosisResult;
 import com.suyo.suyo.domain.LayerEvidence;
 import com.suyo.suyo.domain.UnverifiedHypothesis;
 import com.suyo.suyo.domain.type.AnalysisStatus;
+import com.suyo.suyo.domain.type.ConfidenceStatus;
 import com.suyo.suyo.domain.type.DiagnosisLayer;
 import com.suyo.suyo.dto.request.AnalysisCreateRequest;
 import com.suyo.suyo.dto.response.AnalysisCreateResponse;
+import com.suyo.suyo.dto.response.ConfirmedEvidenceResponse;
 import com.suyo.suyo.dto.response.DiagnosisResponse;
+import com.suyo.suyo.dto.response.EvidenceResponse;
 import com.suyo.suyo.dto.response.FactorResponse;
 import com.suyo.suyo.dto.response.LayerResponse;
 import com.suyo.suyo.dto.response.MatchedIndustryResponse;
+import com.suyo.suyo.dto.response.UnverifiedHypothesisResponse;
 import com.suyo.suyo.matching.IndustryMatcher;
 import com.suyo.suyo.matching.MatchResult;
 import com.suyo.suyo.repository.AnalysisRequestRepository;
@@ -127,6 +131,29 @@ public class AnalysisService {
                 diagnosisResult.getDataCoverage() == null ? null : diagnosisResult.getDataCoverage().name(),
                 layers,
                 diagnosisResult.getCreatedAt());
+    }
+
+    @Transactional(readOnly = true)
+    public EvidenceResponse getEvidence(Long analysisId) {
+        analysisRequestRepository.findById(analysisId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        DiagnosisResult diagnosisResult = diagnosisResultRepository.findByAnalysisRequestId(analysisId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_COMPLETED));
+
+        List<ConfirmedEvidenceResponse> confirmedEvidences = layerEvidenceRepository
+                .findByDiagnosisResultIdOrderByIdAsc(diagnosisResult.getId()).stream()
+                .filter(e -> e.getConfidenceStatus() == ConfidenceStatus.CONFIRMED)
+                .map(e -> new ConfirmedEvidenceResponse(
+                        e.getLayer().name(), e.getFactor(), e.getValue(), e.getSource(), e.getReferenceDate()))
+                .collect(Collectors.toList());
+
+        List<UnverifiedHypothesisResponse> unverifiedHypotheses = unverifiedHypothesisRepository
+                .findByDiagnosisResultIdOrderByIdAsc(diagnosisResult.getId()).stream()
+                .map(h -> new UnverifiedHypothesisResponse(
+                        h.getId(), h.getLayer().name(), h.getDescription(), h.getNeedsVerification()))
+                .collect(Collectors.toList());
+
+        return new EvidenceResponse(analysisId, confirmedEvidences, unverifiedHypotheses);
     }
 
     private void saveEvidences(DiagnosisResult diagnosisResult, LayerResult layerResult) {
