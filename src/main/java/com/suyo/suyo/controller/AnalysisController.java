@@ -12,14 +12,17 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.suyo.suyo.common.ApiResponse;
 import com.suyo.suyo.dto.request.AnalysisCreateRequest;
+import com.suyo.suyo.dto.request.PaymentCreateRequest;
 import com.suyo.suyo.dto.request.QuestionnaireCreateRequest;
 import com.suyo.suyo.dto.response.AnalysisCreateResponse;
 import com.suyo.suyo.dto.response.AnalysisListResponse;
 import com.suyo.suyo.dto.response.AnalysisStatusResponse;
 import com.suyo.suyo.dto.response.DiagnosisResponse;
 import com.suyo.suyo.dto.response.EvidenceResponse;
+import com.suyo.suyo.dto.response.PaymentResponse;
 import com.suyo.suyo.dto.response.QuestionnaireResponse;
 import com.suyo.suyo.service.AnalysisService;
+import com.suyo.suyo.service.PaymentService;
 import com.suyo.suyo.service.QuestionnaireService;
 
 import jakarta.validation.Valid;
@@ -32,6 +35,7 @@ public class AnalysisController {
 
     private final AnalysisService analysisService;
     private final QuestionnaireService questionnaireService;
+    private final PaymentService paymentService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<AnalysisCreateResponse>> create(@Valid @RequestBody AnalysisCreateRequest request) {
@@ -74,6 +78,13 @@ public class AnalysisController {
     public ResponseEntity<ApiResponse<QuestionnaireResponse>> getQuestionnaire(
             @PathVariable Long id, @PathVariable Long questionnaireId) {
         QuestionnaireResponse response = questionnaireService.get(id, questionnaireId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/{id}/payments")
+    public ResponseEntity<ApiResponse<PaymentResponse>> pay(
+            @PathVariable Long id, @Valid @RequestBody PaymentCreateRequest request) {
+        PaymentResponse response = paymentService.pay(id, request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

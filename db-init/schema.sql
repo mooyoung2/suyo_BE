@@ -163,6 +163,7 @@ CREATE INDEX idx_population_quarter          ON population_by_sgg (quarter);
 
 CREATE TABLE IF NOT EXISTS analysis_requests (
     id               BIGSERIAL PRIMARY KEY,
+    session_id       VARCHAR(36)  NOT NULL,    -- 익명 세션(X-Session-Id). "내 아이템" 목록 구분용
     item_name        VARCHAR(200) NOT NULL,
     problem          TEXT,
     target_customer  TEXT,
@@ -172,9 +173,19 @@ CREATE TABLE IF NOT EXISTS analysis_requests (
     matched_code     VARCHAR(10),              -- LLM이 매핑한 업종 소분류코드
     match_accuracy   VARCHAR(20),              -- EXACT / APPROXIMATE
     status           VARCHAR(20)  NOT NULL,    -- PENDING / IN_PROGRESS / COMPLETED / FAILED
+    payment_status   VARCHAR(20)  NOT NULL DEFAULT 'FREE',  -- FREE / PAID
     created_at       TIMESTAMP    NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_analysis_created ON analysis_requests (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analysis_session ON analysis_requests (session_id, created_at DESC);
+
+-- 건별 결제(목업, PG 연동 없음). PACK3 결제 시 세션에 크레딧 2건 적립 (2026-08-13 신규)
+CREATE TABLE IF NOT EXISTS payment_credits (
+    session_id        VARCHAR(36) PRIMARY KEY,
+    remaining_credits INTEGER   NOT NULL DEFAULT 0,
+    expires_at        TIMESTAMP,
+    updated_at        TIMESTAMP NOT NULL DEFAULT now()
+);
 
 CREATE TABLE IF NOT EXISTS diagnosis_results (
     id                 BIGSERIAL PRIMARY KEY,
