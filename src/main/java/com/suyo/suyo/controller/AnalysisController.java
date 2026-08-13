@@ -7,12 +7,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.suyo.suyo.common.ApiResponse;
 import com.suyo.suyo.dto.request.AnalysisCreateRequest;
 import com.suyo.suyo.dto.request.QuestionnaireCreateRequest;
 import com.suyo.suyo.dto.response.AnalysisCreateResponse;
+import com.suyo.suyo.dto.response.AnalysisListResponse;
+import com.suyo.suyo.dto.response.AnalysisStatusResponse;
 import com.suyo.suyo.dto.response.DiagnosisResponse;
 import com.suyo.suyo.dto.response.EvidenceResponse;
 import com.suyo.suyo.dto.response.QuestionnaireResponse;
@@ -34,6 +37,18 @@ public class AnalysisController {
     public ResponseEntity<ApiResponse<AnalysisCreateResponse>> create(@Valid @RequestBody AnalysisCreateRequest request) {
         AnalysisCreateResponse response = analysisService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<AnalysisListResponse>> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(analysisService.list(page, size)));
+    }
+
+    @GetMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<AnalysisStatusResponse>> getStatus(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(analysisService.getStatus(id)));
     }
 
     @GetMapping("/{id}/diagnosis")
