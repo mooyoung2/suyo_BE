@@ -205,7 +205,7 @@ CREATE TABLE IF NOT EXISTS layer_evidences (
     diagnosis_id      BIGINT NOT NULL REFERENCES diagnosis_results(id) ON DELETE CASCADE,
     layer             VARCHAR(20)  NOT NULL,   -- MARKET / CUSTOMER / COMPETITION
     factor            VARCHAR(200) NOT NULL,
-    value             VARCHAR(200),
+    factor_value      VARCHAR(200),             -- "value"는 H2 등 일부 DB에서 예약어라 회피
     percentile        VARCHAR(50),              -- 예: "서울 상위 21%" (원본값과 함께 노출용)
     sample_size       INTEGER,                  -- 비율 지표의 분모(예: 점포수). LOW_SAMPLE 판정 근거
     source            VARCHAR(200),

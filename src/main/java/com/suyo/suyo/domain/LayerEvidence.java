@@ -40,7 +40,7 @@ public class LayerEvidence {
     @Column(name = "factor", nullable = false, length = 200)
     private String factor;
 
-    @Column(name = "value", length = 200)
+    @Column(name = "factor_value", length = 200)
     private String value;
 
     @Column(name = "percentile", length = 50)
