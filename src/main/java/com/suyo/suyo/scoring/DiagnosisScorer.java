@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -17,8 +18,9 @@ import com.suyo.suyo.repository.IndustryCodeRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 레이어_점수산출_설계서.md(v2)를 그대로 구현한 3레이어 진단 스코어러.
- * 매칭된 업종 소분류코드 + 자치구코드 하나에 대해 L1/L2(데이터)/L3 점수와 근거를 계산한다.
+ * 레이어_점수산출_설계서.md(v3, 2026-08-13)를 그대로 구현한 3레이어 진단 스코어러.
+ * 매칭된 업종 소분류코드 + 자치구코드 하나에 대해 L1/L2/L3 점수와 근거를 계산한다.
+ * v3: CUSTOMER 4개 지표 배점을 28→40으로 비례 확대(정성 검증 12점 폐기), 총점 100점 만점.
  */
 @Component
 @RequiredArgsConstructor
@@ -27,15 +29,15 @@ public class DiagnosisScorer {
     private static final int MAX_SIZE = 10;
     private static final int MAX_CAGR = 15;
     private static final int MAX_MOMENTUM = 5;
-    private static final int MAX_GENDER = 5;
-    private static final int MAX_AGE = 5;
-    private static final int MAX_DEMAND = 8;
-    private static final int MAX_WEEKEND = 10;
+    private static final int MAX_GENDER = 7;
+    private static final int MAX_AGE = 7;
+    private static final int MAX_DEMAND = 11;
+    private static final int MAX_WEEKEND = 15;
     private static final int MAX_DENSITY = 15;
     private static final int MAX_SURVIVAL = 15;
 
     private static final int L1_MAX = MAX_SIZE + MAX_CAGR + MAX_MOMENTUM;
-    private static final int L2_DATA_MAX = MAX_GENDER + MAX_AGE + MAX_DEMAND + MAX_WEEKEND;
+    private static final int L2_MAX = MAX_GENDER + MAX_AGE + MAX_DEMAND + MAX_WEEKEND;
     private static final int L3_MAX = MAX_DENSITY + MAX_SURVIVAL;
 
     private static final int LOW_SAMPLE_THRESHOLD = 10;
@@ -59,7 +61,7 @@ public class DiagnosisScorer {
 
         if (metrics == null) {
             market = new LayerResult(DiagnosisLayer.MARKET, null, L1_MAX, List.of());
-            customer = new LayerResult(DiagnosisLayer.CUSTOMER, null, L2_DATA_MAX, List.of());
+            customer = new LayerResult(DiagnosisLayer.CUSTOMER, null, L2_MAX, List.of());
         } else {
             market = scoreMarket(metrics);
             customer = scoreCustomer(metrics);
@@ -75,7 +77,7 @@ public class DiagnosisScorer {
         if (customer.score() != null) total = total.add(customer.score());
         total = round(total);
 
-        String verdict = buildVerdict(full);
+        String verdict = buildVerdict(full, market, customer, competition);
 
         return new DiagnosisComputation(total, verdict, dataCoverage, market, customer, competition, hypotheses);
     }
@@ -120,11 +122,9 @@ public class DiagnosisScorer {
                         null, "서울시 상권분석서비스", "2021~2026", ConfidenceStatus.CONFIRMED),
                 new ScoredFactor("소비패턴 안정성(주말비중)", formatPercent(m.weekend()),
                         percentileText(cache.getWeekendRanker(), weekendDistance),
-                        null, "서울시 상권분석서비스", "최근 분기", ConfidenceStatus.CONFIRMED),
-                new ScoredFactor("불편의 실체와 지불 의사", null, null, null, null, null,
-                        ConfidenceStatus.INSUFFICIENT_DATA)
+                        null, "서울시 상권분석서비스", "최근 분기", ConfidenceStatus.CONFIRMED)
         );
-        return new LayerResult(DiagnosisLayer.CUSTOMER, score, L2_DATA_MAX, factors);
+        return new LayerResult(DiagnosisLayer.CUSTOMER, score, L2_MAX, factors);
     }
 
     private LayerResult scoreCompetition(String smallCode, String sggCode, String sggName, IndustryCode industryCode) {
@@ -184,11 +184,35 @@ public class DiagnosisScorer {
         return "서울 상위 " + upperPct + "%";
     }
 
-    private static String buildVerdict(boolean full) {
+    /** v3: "고객 검증 부족" 고정 문구 폐기. 세 레이어 중 등급이 낮은(HIGH/MEDIUM) 레이어를 짚어주는 문구로 대체. */
+    private static String buildVerdict(boolean full, LayerResult market, LayerResult customer, LayerResult competition) {
         if (!full) {
             return "시장·고객 데이터 없음";
         }
-        return "고객 검증 부족";
+
+        record LayerRisk(String layerName, RiskLevel level) {
+        }
+        List<LayerRisk> risks = List.of(
+                new LayerRisk("시장 규모·성장률", RiskGrader.grade(market.score(), RiskGrader.L1_LOW_CUT, RiskGrader.L1_HIGH_CUT)),
+                new LayerRisk("고객(타겟)", RiskGrader.grade(customer.score(), RiskGrader.L2_LOW_CUT, RiskGrader.L2_HIGH_CUT)),
+                new LayerRisk("경쟁", RiskGrader.grade(competition.score(), RiskGrader.L3_LOW_CUT, RiskGrader.L3_HIGH_CUT))
+        );
+
+        List<LayerRisk> notLow = risks.stream().filter(r -> r.level() != RiskLevel.LOW).toList();
+        if (notLow.isEmpty()) {
+            return "전반적으로 서울 평균보다 양호합니다";
+        }
+        if (notLow.size() == 1) {
+            LayerRisk risk = notLow.get(0);
+            return risk.layerName() + " " + riskText(risk.level()) + " — 나머지는 양호";
+        }
+        return notLow.stream()
+                .map(r -> r.layerName() + " " + riskText(r.level()))
+                .collect(Collectors.joining(", "));
+    }
+
+    private static String riskText(RiskLevel level) {
+        return level == RiskLevel.HIGH ? "위험" : "보통";
     }
 
     private static BigDecimal round(BigDecimal value) {

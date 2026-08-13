@@ -61,7 +61,7 @@ for c,g in by_code.items():
 R['density']=Rank(ratios, False)   # 밀도 낮을수록 좋음
 R['survival']=Rank([float(r['5년생존율']) for r in sur.values() if r['상가업종대분류코드']], True)
 
-MAX=dict(size=10,cagr=15,momentum=5,gender=7,age=7,demand=11,weekend=15,density=15,survival=15)  # v3 2026-08-13: L2 28->40 비례확대
+MAX=dict(size=10,cagr=15,momentum=5,gender=7,age=7,demand=11,weekend=15,density=15,survival=15)
 def sc(key,x): return R[key].pct(x)/100*MAX[key]
 
 # ---------- 전체 조합 점수 계산 ----------

@@ -9,6 +9,9 @@ public record AnalysisCreateRequest(
         @Size(min = 1, max = 200, message = "아이템명은 1~200자여야 합니다.")
         String itemName,
 
+        @NotBlank(message = "업종 코드는 필수입니다.")
+        String industryCode,
+
         @NotBlank(message = "해결하려는 문제는 필수입니다.")
         String problem,
 

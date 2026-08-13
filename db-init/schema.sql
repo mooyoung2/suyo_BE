@@ -215,9 +215,15 @@ CREATE INDEX IF NOT EXISTS idx_hypothesis_diagnosis ON unverified_hypotheses (di
 CREATE TABLE IF NOT EXISTS questionnaires (
     id            BIGSERIAL PRIMARY KEY,
     analysis_id   BIGINT NOT NULL REFERENCES analysis_requests(id) ON DELETE CASCADE,
-    hypothesis_id BIGINT REFERENCES unverified_hypotheses(id) ON DELETE SET NULL,
     type          VARCHAR(20) NOT NULL,        -- INTERVIEW / SURVEY
     created_at    TIMESTAMP   NOT NULL DEFAULT now()
+);
+
+-- 질문지 1개가 가설 여러 개를 근거로 생성될 수 있어 다대다로 분리 (API 명세서 hypothesisIds: [] 배열)
+CREATE TABLE IF NOT EXISTS questionnaire_hypotheses (
+    questionnaire_id BIGINT NOT NULL REFERENCES questionnaires(id) ON DELETE CASCADE,
+    hypothesis_id    BIGINT NOT NULL REFERENCES unverified_hypotheses(id) ON DELETE CASCADE,
+    PRIMARY KEY (questionnaire_id, hypothesis_id)
 );
 
 CREATE TABLE IF NOT EXISTS questionnaire_items (
