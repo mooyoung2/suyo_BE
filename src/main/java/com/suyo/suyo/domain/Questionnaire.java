@@ -1,5 +1,9 @@
 package com.suyo.suyo.domain;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.suyo.suyo.domain.type.QuestionnaireType;
 
 import jakarta.persistence.Column;
@@ -11,6 +15,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -18,8 +24,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "questionnaires")
@@ -35,9 +39,13 @@ public class Questionnaire {
     @JoinColumn(name = "analysis_id", nullable = false)
     private AnalysisRequest analysisRequest;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hypothesis_id")
-    private UnverifiedHypothesis hypothesis;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "questionnaire_hypotheses",
+            joinColumns = @JoinColumn(name = "questionnaire_id"),
+            inverseJoinColumns = @JoinColumn(name = "hypothesis_id")
+    )
+    private List<UnverifiedHypothesis> hypotheses = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 20)
@@ -48,9 +56,9 @@ public class Questionnaire {
     private LocalDateTime createdAt;
 
     @Builder
-    private Questionnaire(AnalysisRequest analysisRequest, UnverifiedHypothesis hypothesis, QuestionnaireType type) {
+    private Questionnaire(AnalysisRequest analysisRequest, List<UnverifiedHypothesis> hypotheses, QuestionnaireType type) {
         this.analysisRequest = analysisRequest;
-        this.hypothesis = hypothesis;
+        this.hypotheses = hypotheses != null ? hypotheses : new ArrayList<>();
         this.type = type;
     }
 }

@@ -12,11 +12,13 @@ import com.suyo.suyo.common.exception.BusinessException;
 import com.suyo.suyo.common.exception.ErrorCode;
 import com.suyo.suyo.domain.AnalysisRequest;
 import com.suyo.suyo.domain.DiagnosisResult;
+import com.suyo.suyo.domain.IndustryCode;
 import com.suyo.suyo.domain.LayerEvidence;
 import com.suyo.suyo.domain.UnverifiedHypothesis;
 import com.suyo.suyo.domain.type.AnalysisStatus;
 import com.suyo.suyo.domain.type.ConfidenceStatus;
 import com.suyo.suyo.domain.type.DiagnosisLayer;
+import com.suyo.suyo.domain.type.MatchAccuracy;
 import com.suyo.suyo.dto.request.AnalysisCreateRequest;
 import com.suyo.suyo.dto.response.AnalysisCreateResponse;
 import com.suyo.suyo.dto.response.ConfirmedEvidenceResponse;
@@ -26,10 +28,10 @@ import com.suyo.suyo.dto.response.FactorResponse;
 import com.suyo.suyo.dto.response.LayerResponse;
 import com.suyo.suyo.dto.response.MatchedIndustryResponse;
 import com.suyo.suyo.dto.response.UnverifiedHypothesisResponse;
-import com.suyo.suyo.matching.IndustryMatcher;
-import com.suyo.suyo.matching.MatchResult;
 import com.suyo.suyo.repository.AnalysisRequestRepository;
 import com.suyo.suyo.repository.DiagnosisResultRepository;
+import com.suyo.suyo.repository.IndustryCodeMappingRepository;
+import com.suyo.suyo.repository.IndustryCodeRepository;
 import com.suyo.suyo.repository.LayerEvidenceRepository;
 import com.suyo.suyo.repository.UnverifiedHypothesisRepository;
 import com.suyo.suyo.scoring.DiagnosisComputation;
@@ -49,12 +51,18 @@ public class AnalysisService {
     private final DiagnosisResultRepository diagnosisResultRepository;
     private final LayerEvidenceRepository layerEvidenceRepository;
     private final UnverifiedHypothesisRepository unverifiedHypothesisRepository;
-    private final IndustryMatcher industryMatcher;
+    private final IndustryCodeRepository industryCodeRepository;
+    private final IndustryCodeMappingRepository industryCodeMappingRepository;
     private final DiagnosisScorer diagnosisScorer;
 
     public AnalysisCreateResponse create(AnalysisCreateRequest request) {
         SeoulDistrict district = SeoulDistrict.findByCode(request.regionSggCode())
                 .orElseThrow(() -> new BusinessException(ErrorCode.REGION_NOT_SUPPORTED));
+
+        industryCodeMappingRepository.findBySmallCode(request.industryCode())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INDUSTRY_NOT_SUPPORTED));
+        IndustryCode industryCode = industryCodeRepository.findById(request.industryCode())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INDUSTRY_NOT_SUPPORTED));
 
         AnalysisRequest analysis = AnalysisRequest.builder()
                 .itemName(request.itemName())
@@ -64,13 +72,11 @@ public class AnalysisService {
                 .regionSggCode(request.regionSggCode())
                 .build();
         analysis.changeStatus(AnalysisStatus.IN_PROGRESS);
+        analysis.applyIndustryMatch(industryCode.getSmallCode(), MatchAccuracy.EXACT);
         analysisRequestRepository.save(analysis);
 
-        MatchResult match = industryMatcher.match(request.itemName(), request.problem());
-        analysis.applyIndustryMatch(match.smallCode(), match.matchAccuracy());
-
         DiagnosisComputation computation = diagnosisScorer.score(
-                match.smallCode(), request.regionSggCode(), district.getDistrictName(),
+                industryCode.getSmallCode(), request.regionSggCode(), district.getDistrictName(),
                 request.problem(), request.targetCustomer());
 
         DiagnosisResult diagnosisResult = DiagnosisResult.builder()
@@ -99,7 +105,7 @@ public class AnalysisService {
         analysis.changeStatus(AnalysisStatus.COMPLETED);
 
         MatchedIndustryResponse matchedIndustryResponse = new MatchedIndustryResponse(
-                match.smallCode(), match.smallName(), match.matchAccuracy().name(), match.notice());
+                industryCode.getSmallCode(), industryCode.getSmallName(), MatchAccuracy.EXACT.name());
 
         return new AnalysisCreateResponse(
                 analysis.getId(),
