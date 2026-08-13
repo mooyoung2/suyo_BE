@@ -213,10 +213,12 @@ CREATE TABLE IF NOT EXISTS unverified_hypotheses (
 CREATE INDEX IF NOT EXISTS idx_hypothesis_diagnosis ON unverified_hypotheses (diagnosis_id);
 
 CREATE TABLE IF NOT EXISTS questionnaires (
-    id            BIGSERIAL PRIMARY KEY,
-    analysis_id   BIGINT NOT NULL REFERENCES analysis_requests(id) ON DELETE CASCADE,
-    type          VARCHAR(20) NOT NULL,        -- INTERVIEW / SURVEY
-    created_at    TIMESTAMP   NOT NULL DEFAULT now()
+    id                                BIGSERIAL PRIMARY KEY,
+    analysis_id                       BIGINT NOT NULL REFERENCES analysis_requests(id) ON DELETE CASCADE,
+    type                              VARCHAR(20) NOT NULL,        -- INTERVIEW / SURVEY
+    leading_question_check_passed    BOOLEAN,                     -- LLM 자가검증 결과 (질문 생성 직후)
+    leading_question_check_summary   TEXT,
+    created_at                        TIMESTAMP NOT NULL DEFAULT now()
 );
 
 -- 질문지 1개가 가설 여러 개를 근거로 생성될 수 있어 다대다로 분리 (API 명세서 hypothesisIds: [] 배열)

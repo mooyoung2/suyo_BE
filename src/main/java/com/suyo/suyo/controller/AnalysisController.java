@@ -11,10 +11,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.suyo.suyo.common.ApiResponse;
 import com.suyo.suyo.dto.request.AnalysisCreateRequest;
+import com.suyo.suyo.dto.request.QuestionnaireCreateRequest;
 import com.suyo.suyo.dto.response.AnalysisCreateResponse;
 import com.suyo.suyo.dto.response.DiagnosisResponse;
 import com.suyo.suyo.dto.response.EvidenceResponse;
+import com.suyo.suyo.dto.response.QuestionnaireResponse;
 import com.suyo.suyo.service.AnalysisService;
+import com.suyo.suyo.service.QuestionnaireService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class AnalysisController {
 
     private final AnalysisService analysisService;
+    private final QuestionnaireService questionnaireService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<AnalysisCreateResponse>> create(@Valid @RequestBody AnalysisCreateRequest request) {
@@ -41,6 +45,20 @@ public class AnalysisController {
     @GetMapping("/{id}/evidence")
     public ResponseEntity<ApiResponse<EvidenceResponse>> getEvidence(@PathVariable Long id) {
         EvidenceResponse response = analysisService.getEvidence(id);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/{id}/questionnaires")
+    public ResponseEntity<ApiResponse<QuestionnaireResponse>> createQuestionnaire(
+            @PathVariable Long id, @Valid @RequestBody QuestionnaireCreateRequest request) {
+        QuestionnaireResponse response = questionnaireService.create(id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{id}/questionnaires/{questionnaireId}")
+    public ResponseEntity<ApiResponse<QuestionnaireResponse>> getQuestionnaire(
+            @PathVariable Long id, @PathVariable Long questionnaireId) {
+        QuestionnaireResponse response = questionnaireService.get(id, questionnaireId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

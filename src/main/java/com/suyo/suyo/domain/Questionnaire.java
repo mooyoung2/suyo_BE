@@ -51,6 +51,12 @@ public class Questionnaire {
     @Column(name = "type", nullable = false, length = 20)
     private QuestionnaireType type;
 
+    @Column(name = "leading_question_check_passed")
+    private Boolean leadingQuestionCheckPassed;
+
+    @Column(name = "leading_question_check_summary", columnDefinition = "TEXT")
+    private String leadingQuestionCheckSummary;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -60,5 +66,10 @@ public class Questionnaire {
         this.analysisRequest = analysisRequest;
         this.hypotheses = hypotheses != null ? hypotheses : new ArrayList<>();
         this.type = type;
+    }
+
+    public void applyLeadingQuestionCheck(boolean passed, String summary) {
+        this.leadingQuestionCheckPassed = passed;
+        this.leadingQuestionCheckSummary = summary;
     }
 }
