@@ -2,8 +2,13 @@ package com.suyo.suyo.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +26,9 @@ import com.suyo.suyo.domain.type.DiagnosisLayer;
 import com.suyo.suyo.domain.type.MatchAccuracy;
 import com.suyo.suyo.dto.request.AnalysisCreateRequest;
 import com.suyo.suyo.dto.response.AnalysisCreateResponse;
+import com.suyo.suyo.dto.response.AnalysisListItemResponse;
+import com.suyo.suyo.dto.response.AnalysisListResponse;
+import com.suyo.suyo.dto.response.AnalysisStatusResponse;
 import com.suyo.suyo.dto.response.ConfirmedEvidenceResponse;
 import com.suyo.suyo.dto.response.DiagnosisResponse;
 import com.suyo.suyo.dto.response.EvidenceResponse;
@@ -137,6 +145,43 @@ public class AnalysisService {
                 diagnosisResult.getDataCoverage() == null ? null : diagnosisResult.getDataCoverage().name(),
                 layers,
                 diagnosisResult.getCreatedAt());
+    }
+
+    @Transactional(readOnly = true)
+    public AnalysisListResponse list(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<AnalysisRequest> result = analysisRequestRepository.findAll(pageable);
+
+        List<Long> analysisIds = result.getContent().stream().map(AnalysisRequest::getId).toList();
+        Map<Long, DiagnosisResult> diagnosisByAnalysisId = diagnosisResultRepository.findByAnalysisRequestIdIn(analysisIds)
+                .stream()
+                .collect(Collectors.toMap(d -> d.getAnalysisRequest().getId(), d -> d));
+
+        List<AnalysisListItemResponse> content = result.getContent().stream()
+                .map(analysis -> {
+                    boolean completed = analysis.getStatus() == AnalysisStatus.COMPLETED;
+                    DiagnosisResult diagnosisResult = diagnosisByAnalysisId.get(analysis.getId());
+                    return new AnalysisListItemResponse(
+                            analysis.getId(),
+                            analysis.getItemName(),
+                            analysis.getStatus().name(),
+                            completed && diagnosisResult != null ? diagnosisResult.getTotalScore() : null,
+                            completed && diagnosisResult != null ? diagnosisResult.getVerdict() : null,
+                            analysis.getCreatedAt());
+                })
+                .toList();
+
+        return new AnalysisListResponse(
+                content, result.getNumber(), result.getSize(), result.getTotalElements(), result.getTotalPages());
+    }
+
+    @Transactional(readOnly = true)
+    public AnalysisStatusResponse getStatus(Long analysisId) {
+        AnalysisRequest analysis = analysisRequestRepository.findById(analysisId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        String progressMessage = analysis.getStatus() == AnalysisStatus.IN_PROGRESS
+                ? "진단을 처리하고 있습니다" : null;
+        return new AnalysisStatusResponse(analysis.getId(), analysis.getStatus().name(), progressMessage);
     }
 
     @Transactional(readOnly = true)
