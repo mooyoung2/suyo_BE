@@ -46,6 +46,9 @@ public class QuestionnaireService {
     public QuestionnaireResponse create(Long analysisId, QuestionnaireCreateRequest request) {
         AnalysisRequest analysis = analysisRequestRepository.findById(analysisId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        if (!analysis.isPaid()) {
+            throw new BusinessException(ErrorCode.PAYMENT_REQUIRED);
+        }
         DiagnosisResult diagnosisResult = diagnosisResultRepository.findByAnalysisRequestId(analysisId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_COMPLETED));
 

@@ -9,6 +9,8 @@ public record DiagnosisResponse(
         String itemName,
         BigDecimal totalScore,
         String verdict,
+        String accessLevel,
+        String aiSummary,
         String dataCoverage,
         List<LayerResponse> layers,
         LocalDateTime createdAt

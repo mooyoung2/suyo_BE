@@ -19,6 +19,7 @@ import com.suyo.suyo.domain.AnalysisRequest;
 import com.suyo.suyo.domain.DiagnosisResult;
 import com.suyo.suyo.domain.IndustryCode;
 import com.suyo.suyo.domain.LayerEvidence;
+import com.suyo.suyo.domain.PaymentCredit;
 import com.suyo.suyo.domain.UnverifiedHypothesis;
 import com.suyo.suyo.domain.type.AnalysisStatus;
 import com.suyo.suyo.domain.type.ConfidenceStatus;
@@ -41,12 +42,14 @@ import com.suyo.suyo.repository.DiagnosisResultRepository;
 import com.suyo.suyo.repository.IndustryCodeMappingRepository;
 import com.suyo.suyo.repository.IndustryCodeRepository;
 import com.suyo.suyo.repository.LayerEvidenceRepository;
+import com.suyo.suyo.repository.PaymentCreditRepository;
 import com.suyo.suyo.repository.UnverifiedHypothesisRepository;
 import com.suyo.suyo.scoring.DiagnosisComputation;
 import com.suyo.suyo.scoring.DiagnosisScorer;
 import com.suyo.suyo.scoring.LayerResult;
 import com.suyo.suyo.scoring.RiskGrader;
 import com.suyo.suyo.scoring.ScoredFactor;
+import com.suyo.suyo.session.SessionContext;
 
 import lombok.RequiredArgsConstructor;
 
@@ -61,7 +64,9 @@ public class AnalysisService {
     private final UnverifiedHypothesisRepository unverifiedHypothesisRepository;
     private final IndustryCodeRepository industryCodeRepository;
     private final IndustryCodeMappingRepository industryCodeMappingRepository;
+    private final PaymentCreditRepository paymentCreditRepository;
     private final DiagnosisScorer diagnosisScorer;
+    private final SessionContext sessionContext;
 
     public AnalysisCreateResponse create(AnalysisCreateRequest request) {
         SeoulDistrict district = SeoulDistrict.findByCode(request.regionSggCode())
@@ -72,7 +77,9 @@ public class AnalysisService {
         IndustryCode industryCode = industryCodeRepository.findById(request.industryCode())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INDUSTRY_NOT_SUPPORTED));
 
+        String sessionId = sessionContext.getSessionId();
         AnalysisRequest analysis = AnalysisRequest.builder()
+                .sessionId(sessionId)
                 .itemName(request.itemName())
                 .problem(request.problem())
                 .targetCustomer(request.targetCustomer())
@@ -81,6 +88,14 @@ public class AnalysisService {
                 .build();
         analysis.changeStatus(AnalysisStatus.IN_PROGRESS);
         analysis.applyIndustryMatch(industryCode.getSmallCode(), MatchAccuracy.EXACT);
+
+        paymentCreditRepository.findBySessionId(sessionId)
+                .filter(PaymentCredit::hasValidCredit)
+                .ifPresent(credit -> {
+                    credit.consumeOne();
+                    analysis.markPaid();
+                });
+
         analysisRequestRepository.save(analysis);
 
         DiagnosisComputation computation = diagnosisScorer.score(
@@ -131,10 +146,11 @@ public class AnalysisService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANALYSIS_NOT_COMPLETED));
         List<LayerEvidence> evidences = layerEvidenceRepository.findByDiagnosisResultIdOrderByIdAsc(diagnosisResult.getId());
 
+        boolean paid = analysis.isPaid();
         List<LayerResponse> layers = List.of(
-                toLayerResponse(DiagnosisLayer.MARKET, diagnosisResult.getMarketScore(), 30, evidences),
-                toLayerResponse(DiagnosisLayer.CUSTOMER, diagnosisResult.getCustomerScore(), 40, evidences),
-                toLayerResponse(DiagnosisLayer.COMPETITION, diagnosisResult.getCompetitionScore(), 30, evidences)
+                toLayerResponse(DiagnosisLayer.MARKET, diagnosisResult.getMarketScore(), 30, evidences, paid),
+                toLayerResponse(DiagnosisLayer.CUSTOMER, diagnosisResult.getCustomerScore(), 40, evidences, paid),
+                toLayerResponse(DiagnosisLayer.COMPETITION, diagnosisResult.getCompetitionScore(), 30, evidences, paid)
         );
 
         return new DiagnosisResponse(
@@ -142,6 +158,8 @@ public class AnalysisService {
                 analysis.getItemName(),
                 diagnosisResult.getTotalScore(),
                 diagnosisResult.getVerdict(),
+                paid ? "PAID" : "FREE",
+                null,
                 diagnosisResult.getDataCoverage() == null ? null : diagnosisResult.getDataCoverage().name(),
                 layers,
                 diagnosisResult.getCreatedAt());
@@ -150,7 +168,7 @@ public class AnalysisService {
     @Transactional(readOnly = true)
     public AnalysisListResponse list(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<AnalysisRequest> result = analysisRequestRepository.findAll(pageable);
+        Page<AnalysisRequest> result = analysisRequestRepository.findBySessionId(sessionContext.getSessionId(), pageable);
 
         List<Long> analysisIds = result.getContent().stream().map(AnalysisRequest::getId).toList();
         Map<Long, DiagnosisResult> diagnosisByAnalysisId = diagnosisResultRepository.findByAnalysisRequestIdIn(analysisIds)
@@ -223,7 +241,8 @@ public class AnalysisService {
         }
     }
 
-    private LayerResponse toLayerResponse(DiagnosisLayer layer, BigDecimal score, int maxScore, List<LayerEvidence> allEvidences) {
+    private LayerResponse toLayerResponse(DiagnosisLayer layer, BigDecimal score, int maxScore,
+                                           List<LayerEvidence> allEvidences, boolean paid) {
         double lowCut = switch (layer) {
             case MARKET -> RiskGrader.L1_LOW_CUT;
             case CUSTOMER -> RiskGrader.L2_LOW_CUT;
@@ -235,6 +254,12 @@ public class AnalysisService {
             case COMPETITION -> RiskGrader.L3_HIGH_CUT;
         };
         var riskLevel = RiskGrader.grade(score, lowCut, highCut);
+
+        // accessLevel=FREE면 근거·요약은 결제해야 볼 수 있다 (API 명세서 "프론트가 챙겨야 할 것 5" 항목 5).
+        if (!paid) {
+            return new LayerResponse(layer.name(), layerName(layer), score, maxScore, riskLevel.name(),
+                    dataScope(layer), null, null);
+        }
 
         List<FactorResponse> factors = allEvidences.stream()
                 .filter(e -> e.getLayer() == layer)
