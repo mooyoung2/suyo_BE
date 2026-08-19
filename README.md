@@ -94,8 +94,4 @@ src/main/java/com/suyo/suyo/
   session/                익명 세션(X-Session-Id) 처리
 ```
 
-## 배포
 
-`src/main/resources/application-prod.yml` 참고 (`ddl-auto: validate`이므로 배포 전 로컬에서
-스키마가 확정된 상태여야 한다). 배포 환경에서도 `DB_URL`/`DB_USERNAME`/`DB_PASSWORD`/`OPENAI_API_KEY`를
-환경변수로 주입해야 한다 (fallback 기본값 없음).
