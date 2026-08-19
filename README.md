@@ -55,6 +55,20 @@ H2 인메모리 DB(`test` 프로필)로 돈다. `src/test/resources/import.sql`�
 참조 데이터가 있어서, 진단 API까지 실제로 계산해서 검증한다. OpenAI 호출(질문지 생성)은
 `QuestionnaireGenerationService`를 목(mock)으로 대체해서 네트워크·비용 없이 돈다.
 
+## 배포
+
+- 백엔드: `https://api.suyo-deploy.shop`
+- 프론트엔드: `https://www.suyo-deploy.shop`
+
+배포 환경 확인:
+
+```bash
+curl https://api.suyo-deploy.shop/actuator/health
+```
+
+AWS EC2(Docker) + RDS(PostgreSQL) + ALB(HTTPS) 구성으로 운영 중이며,
+CI/CD 없이 수동 빌드·배포한다 (해커톤 일정상 자동화는 범위 밖).
+
 ## API 명세
 
 Notion API 명세서(요청/응답 전체 스펙, 에러 코드, 화면 흐름) — 팀 노션 참고.
@@ -93,5 +107,12 @@ src/main/java/com/suyo/suyo/
   service/                비즈니스 로직
   session/                익명 세션(X-Session-Id) 처리
 ```
+
+## 진단 로직 개요
+
+서울 25개 자치구 × 96개 업종 조합의 실측 데이터(매출·인구·경쟁업소·생존율)를
+백분위로 환산해 3개 레이어(시장 30점·고객 40점·경쟁 30점, 총 100점)로 채점한다.
+등급 경계값은 서울 2,395개 조합 실측 분포의 상/하위 33% 지점(P33/P67)으로 고정했다.
+자세한 산출식은 `레이어_점수산출_설계서.md` 참고.
 
 
