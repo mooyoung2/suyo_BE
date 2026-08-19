@@ -1,0 +1,10 @@
+build/
+.gradle/
+.git/
+.idea/
+*.iml
+.env
+.env.example
+frontend/
+db-init/
+*.md
