@@ -18,7 +18,6 @@ public record AnalysisCreateRequest(
         @NotBlank(message = "예상 고객은 필수입니다.")
         String targetCustomer,
 
-        @NotBlank(message = "제공 방식은 필수입니다.")
         String deliveryMethod,
 
         @NotBlank(message = "지역 코드는 필수입니다.")

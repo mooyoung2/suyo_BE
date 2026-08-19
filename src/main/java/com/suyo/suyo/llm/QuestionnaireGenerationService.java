@@ -31,10 +31,20 @@ public class QuestionnaireGenerationService {
             2. "이런 서비스가 있으면 이용하시겠습니까?" 같은 미래 의향을 묻는 유도질문은 절대 만들지 마세요.
             3. 질문은 3개를 만들고, 각 질문마다 이 질문으로 무엇을 확인하려는지 purpose를 한 문장으로 답니다.
             4. 질문을 다 만든 뒤, 방금 만든 질문들이 왜 유도질문이 아닌지 스스로 점검해서 1~2문장으로 설명하세요.
+            5. %s
 
             다음 JSON 스키마로만 응답하세요:
             {"items": [{"questionText": "...", "purpose": "..."}], "leadingQuestionCheck": {"passed": true, "summary": "..."}}
             """;
+
+    private static final String INTERVIEW_FORMAT_RULE =
+            "질문은 대화형 개방형 질문으로 작성하세요. 응답자가 자기 경험을 자유롭게 말로 풀어낼 수 있는 형태여야 하며, 선택지를 제시하지 마세요.";
+
+    private static final String SURVEY_FORMAT_RULE =
+            "질문은 척도 또는 객관식 선택지를 포함한 구조화된 형태로 작성하세요. "
+                    + "questionText 안에 질문 뒤이어 선택지를 \"①②③④\" 번호와 함께 반드시 포함시키세요 "
+                    + "(예: \"지난 한 달간 이 문제를 얼마나 자주 겪으셨나요? ① 전혀 없음 ② 가끔 ③ 자주 ④ 매우 자주\"). "
+                    + "척도형이면 5점 척도(①~⑤)로, 빈도·경험형이면 4개 내외의 객관식 보기로 만드세요.";
 
     private static final String USER_PROMPT_TEMPLATE = """
             아이템: %s
@@ -49,8 +59,10 @@ public class QuestionnaireGenerationService {
 
     public GeneratedQuestionnaire generate(String itemName, String problem, String targetCustomer,
                                             QuestionnaireType type, List<String> hypothesisDescriptions) {
+        boolean isInterview = type == QuestionnaireType.INTERVIEW;
         String systemPrompt = SYSTEM_PROMPT_TEMPLATE.formatted(
-                type == QuestionnaireType.INTERVIEW ? "인터뷰" : "설문");
+                isInterview ? "인터뷰" : "설문",
+                isInterview ? INTERVIEW_FORMAT_RULE : SURVEY_FORMAT_RULE);
         String hypothesesText = hypothesisDescriptions.stream()
                 .map(d -> "- " + d)
                 .collect(Collectors.joining("\n"));
